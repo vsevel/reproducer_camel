@@ -6,15 +6,15 @@ public class Routes extends RouteBuilder {
     @Override
     public void configure() throws Exception {
 
-        String scenario = "jms-to-log"; // around 20'000 messages/sec
+        String scenario = "jms"; // around 20'000 messages/sec
 //        String scenario = "jms-to-kafka"; // around 4000 messages/sec
 //        String scenario = "jms-to-kafka-tx"; // around 150 messages/sec
 
-//        String scenario = "kafka-to-log"; // around 100'000 messages/sec
+//        String scenario = "kafka"; // around 100'000 messages/sec
 //        String scenario = "kafka-to-jms"; // around 150 messages/sec
 //        String scenario = "kafka-to-jms-manual-commit"; // around 90 messages/sec
 
-        if(scenario.equals("jms-to-log")) {
+        if(scenario.equals("jms")) {
 
             // curl -X POST localhost:18080/hello/send-jms?count=1000
 
@@ -67,7 +67,7 @@ public class Routes extends RouteBuilder {
             from("jms:queue:my-queue?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");
 
-        } else if (scenario.equals("kafka-to-log")) {
+        } else if (scenario.equals("kafka")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
 
