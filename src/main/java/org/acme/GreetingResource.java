@@ -9,6 +9,7 @@ import jakarta.transaction.Transactional;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.apache.activemq.artemis.jms.client.ActiveMQDestination;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.eclipse.microprofile.reactive.messaging.Channel;
 import org.eclipse.microprofile.reactive.messaging.Emitter;
 import org.eclipse.microprofile.reactive.messaging.OnOverflow;
@@ -23,8 +24,7 @@ public class GreetingResource {
 
     private static final Logger log = LoggerFactory.getLogger(GreetingResource.class);
 
-    public static final String QUEUE = "my-queue";
-    private final Queue queue = ActiveMQDestination.createQueue(QUEUE);
+    private final Queue queue;
 
     @Inject
     ConnectionFactory connectionFactory;
@@ -33,9 +33,13 @@ public class GreetingResource {
     TransactionManager transactionManager;
 
     @Inject
-    @Channel("words-out")
+    @Channel("channel-out")
     @OnOverflow(value = OnOverflow.Strategy.UNBOUNDED_BUFFER)
-    Emitter<String> emitter;
+    Emitter<Order> emitter;
+
+    GreetingResource(@ConfigProperty(name="myapp.queue") String queueName) {
+        this.queue = ActiveMQDestination.createQueue(queueName);
+    }
 
     @GET
     @Produces(MediaType.TEXT_PLAIN)
@@ -50,6 +54,7 @@ public class GreetingResource {
                        @QueryParam("count") @DefaultValue("1") int count) throws SystemException {
 
         sendMessages(text, count, connectionFactory, queue);
+        MyBean.init();
         return "OK: sent " + count + " JMS message(s) with text " + text;
     }
 
@@ -83,10 +88,36 @@ public class GreetingResource {
     public String sendKafka(@QueryParam("text") @DefaultValue("hello") String text,
                        @QueryParam("count") @DefaultValue("1") int count) {
 
+        MyBean.init();
         for (int i = 0; i < count; i++) {
-            emitter.send(text + "_" + i);
+            Order order = new Order(i, "X", text + "_" + i);
+            emitter.send(order);
         }
 
         return "OK: sent " + count + " Kafka message(s) with text " + text;
+    }
+
+    @POST
+    @Path("/jms-to-kafka")
+    @Produces(MediaType.TEXT_PLAIN)
+    public String jmsToKafka() throws JMSException {
+        int count = 0;
+        long start = System.currentTimeMillis();
+        try (JMSContext context = connectionFactory.createContext(Session.CLIENT_ACKNOWLEDGE)) {
+            JMSConsumer consumer = context.createConsumer(queue);
+            while (true) {
+                TextMessage message = (TextMessage) consumer.receiveNoWait();
+                if (message == null) {
+                    break;
+                }
+                Order order = new Order(count, "X", message.getText());
+                emitter.send(order);
+                count++;
+                message.acknowledge();
+            }
+        }
+        long delta = System.currentTimeMillis() - start;
+        String rate = count == 0 ? "N/A" :  ""+((int)(count * 1000.0 / delta));
+        return "OK: sent "+count+" JMS message(s) to Kafka in "+delta+" ms ("+rate+" messages/s)";
     }
 }

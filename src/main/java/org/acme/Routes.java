@@ -1,30 +1,33 @@
 package org.acme;
 
 import org.apache.camel.builder.RouteBuilder;
+import org.eclipse.microprofile.config.ConfigProvider;
 
 public class Routes extends RouteBuilder {
+
     @Override
     public void configure() throws Exception {
 
-        String scenario = "jms"; // around 20'000 messages/sec
-//        String scenario = "jms-to-kafka"; // around 4000 messages/sec
-//        String scenario = "jms-to-kafka-tx"; // around 150 messages/sec
+//        String scenario = "jms"; // send 100000; dev service avg=23000; LO=25000
+//        String scenario = "jms-to-kafka"; // send 100000; dev service avg=3200; LO=170
+//        String scenario = "jms-to-kafka-tx"; // send 10000; dev service avg=97; LO=110
+//        String scenario = "kafka"; // send 1000000; dev service avg=38000; LO=25000
+//        String scenario = "kafka-to-jms"; // send 1000; dev service avg=120; LO=125
+//        String scenario = "kafka-to-jms-manual-commit"; // send 1000; dev service avg=95; LO=30
+        String scenario = "sjms-to-kafka-with-ack";
 
-//        String scenario = "kafka"; // around 100'000 messages/sec
-//        String scenario = "kafka-to-jms"; // around 150 messages/sec
-//        String scenario = "kafka-to-jms-manual-commit"; // around 90 messages/sec
+        String sc = ConfigProvider.getConfig().getOptionalValue("scenario", String.class).orElse(scenario);
+        log.info("running scenario " + sc);
 
-        if(scenario.equals("jms")) {
+        if (sc.equals("jms")) {
 
             // curl -X POST localhost:18080/hello/send-jms?count=1000
-
             from("jms:queue:my-queue?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");
 
-        } else if(scenario.equals("jms-to-kafka")) {
+        } else if (sc.equals("jms-to-kafka")) {
 
             // curl -X POST localhost:18080/hello/send-jms?count=1000
-
             from("jms:queue:my-queue?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS")
                     .to("kafka:my-topic");
@@ -32,10 +35,9 @@ public class Routes extends RouteBuilder {
             from("kafka:my-topic")
                     .bean("my-bean", "fromKafka");
 
-        } else if(scenario.equals("jms-to-kafka-tx")) {
+        } else if (sc.equals("jms-to-kafka-tx")) {
 
             // curl -X POST localhost:18080/hello/send-jms?count=1000
-
             from("jms:queue:my-queue?concurrentConsumers=10&transacted=true")
                     .bean("my-bean", "fromJMS")
                     .to("kafka:my-topic");
@@ -43,37 +45,52 @@ public class Routes extends RouteBuilder {
             from("kafka:my-topic")
                     .bean("my-bean", "fromKafka");
 
+        } else if (sc.equals("sjms-to-kafka-tx")) {
 
-        } else if (scenario.equals("kafka-to-jms")) {
+            // curl -X POST localhost:18080/hello/send-jms?count=1000
+            from("sjms2:queue:my-queue?concurrentConsumers=10&transacted=true")
+                    .bean("my-bean", "fromJMS")
+                    .to("kafka:my-topic");
+
+//            from("kafka:my-topic")
+//                    .bean("my-bean", "fromKafka");
+
+        } else if (sc.equals("kafka-to-jms")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
-
             from("kafka:my-topic")
-                .bean("my-bean", "fromKafka")
-                .to("jms:queue:my-queue");
+                    .bean("my-bean", "fromKafka")
+                    .to("jms:queue:my-queue");
 
             from("jms:queue:my-queue?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");
 
-        } else if (scenario.equals("kafka-to-jms-manual-commit")) {
+        } else if (sc.equals("kafka-to-jms-manual-commit")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
-
             from("kafka:my-topic?allowManualCommit=true&autoCommitEnable=false")
-                .bean("my-bean", "fromKafka")
-                .to("jms:queue:my-queue")
+                    .bean("my-bean", "fromKafka")
+                    .to("jms:queue:my-queue")
                     .bean("my-bean", "commitKafka");
 
             from("jms:queue:my-queue?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");
 
-        } else if (scenario.equals("kafka")) {
+        } else if (sc.equals("kafka")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
-
             from("kafka:my-topic")
                     .bean("my-bean", "fromKafka");
 
+        } else if (sc.equals("sjms-to-kafka-with-ack")) {
+
+            from("sjms2:queue:my-queue?concurrentConsumers=10&acknowledgementMode=CLIENT_ACKNOWLEDGE&asyncConsumer=true")
+                    .bean("my-bean", "fromJMS")
+                    .to("kafka:my-topic");
+            // .bean("my-bean", "fail");
+
+        } else {
+            log.info("no scenario " + sc);
         }
     }
 }

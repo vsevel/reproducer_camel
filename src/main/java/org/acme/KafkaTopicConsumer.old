@@ -1,0 +1,54 @@
+package org.acme;
+
+import org.acme.Order;
+
+import io.smallrye.common.annotation.Identifier;
+import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.jms.*;
+import jakarta.transaction.Transactional;
+import org.apache.activemq.artemis.jms.client.ActiveMQDestination;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.eclipse.microprofile.reactive.messaging.Incoming;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.util.List;
+
+@ApplicationScoped
+public class KafkaTopicConsumer {
+
+    private static final Logger log = LoggerFactory.getLogger(KafkaTopicConsumer.class);
+
+    private final Queue queue;
+
+    @Inject
+    ConnectionFactory connectionFactory;
+
+    KafkaTopicConsumer(@ConfigProperty(name="myapp.queue") String queueName) {
+        this.queue = ActiveMQDestination.createQueue(queueName);
+    }
+
+    @Incoming("channel-in")
+    @RunOnVirtualThread
+    public void consume(List<Order> records) {
+        long started = System.currentTimeMillis();
+        sendMessages(records);
+        long elapsed = System.currentTimeMillis() - started;
+        int count = records.size();
+        String rate = count == 0 ? "N/A" :  ""+((int)(count * 1000.0 / elapsed));
+        log.info("Processed {} records in {} ms ({} messages/sec)", records.size(), elapsed, rate);
+    }
+
+    void sendMessages(List<Order> records) {
+        try (JMSContext context = connectionFactory.createContext(Session.SESSION_TRANSACTED)) {
+            JMSProducer producer = context.createProducer();
+            for (Order order : records) {
+                TextMessage message = context.createTextMessage(order.getReferenceValue().toString());
+                producer.send(queue, message);
+            }
+
+            context.commit();
+        }
+    }
+}

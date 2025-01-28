@@ -1,5 +1,7 @@
 package org.acme;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.common.annotation.Identifier;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -9,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @ApplicationScoped
 @Identifier("my-bean")
@@ -18,15 +21,43 @@ public class MyBean {
 
     static AtomicInteger countJMS = new AtomicInteger();
     static AtomicInteger countKafka = new AtomicInteger();
+    static AtomicInteger countTotalJMS = new AtomicInteger();
+    static AtomicInteger countTotalKafka = new AtomicInteger();
+    static AtomicLong started = new AtomicLong(0);
 
-    public void fromJMS(String body) {
-        // log.info("received jms " + body);
-        countJMS.incrementAndGet();
+    ObjectMapper objectMapper = new ObjectMapper();
+
+    static void init() {
+        countJMS.set(0);
+        countKafka.set(0);
+        countTotalJMS.set(0);
+        countTotalKafka.set(0);
+        started.set(System.currentTimeMillis());
     }
 
-    public void fromKafka(String body) {
+    public Order fromJMS(String body) {
+//        log.info("received jms " + body);
+        countJMS.incrementAndGet();
+//        if(body.equals("hello_5")) {
+//            throw new RuntimeException("oops hello_5");
+//        }
+        return new Order(1, "X", body);
+    }
+
+    public void fail(Order order) {
+        String ref = order.getReferenceValue().toString();
+        log.error("Failed to process " + ref);
+    }
+
+    public String fromKafka(String body) throws JsonProcessingException {
         // log.info("received kafka " + body);
         countKafka.incrementAndGet();
+        if(body.startsWith("{") && body.endsWith("}")) {
+            String ref = objectMapper.readTree(body).findValue("reference_value").asText();
+            return ref;
+        } else {
+            return body;
+        }
     }
 
     public void commitKafka(Exchange exchange) {
@@ -37,9 +68,12 @@ public class MyBean {
     @Scheduled(every = "1s")
     public void logLastJms() {
         int value = countJMS.getAndSet(0);
+        countTotalJMS.addAndGet(value);
         if (value != 0) {
             int rate = (int) (value * 1.0);
-            String s = "Received from Jms: " + value + " in last 1 sec (" + rate + " messages/s)";
+            long delta = System.currentTimeMillis() - started.get();
+            int totalRate = (int) (countTotalJMS.get() * 1000.0 / delta);
+            String s = "Received from Jms: " + value + " in last 1 sec (" + rate + " messages/s); total rate = "+totalRate+" messages/s";
             log.info(s);
         }
     }
@@ -47,9 +81,12 @@ public class MyBean {
     @Scheduled(every = "1s")
     public void logLastKafka() {
         int value = countKafka.getAndSet(0);
+        countTotalKafka.addAndGet(value);
         if (value != 0) {
             int rate = (int) (value * 1.0);
-            String s = "Received from Kafka: " + value + " in last 1 sec (" + rate + " messages/s)";
+            long delta = System.currentTimeMillis() - started.get();
+            int totalRate = (int) (countTotalKafka.get() * 1000.0 / delta);
+            String s = "Received from Kafka: " + value + " in last 1 sec (" + rate + " messages/s); total rate = "+totalRate+" messages/s";
             log.info(s);
         }
     }

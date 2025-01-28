@@ -1,0 +1,19 @@
+{
+  "type": "record",
+  "name": "Order",
+  "namespace": "org.acme",
+  "fields": [
+    {
+      "name": "quantity",
+      "type": "int"
+    },
+    {
+      "name": "reference_type",
+      "type": "string"
+    },
+    {
+      "name": "reference_value",
+      "type": "string"
+    }
+  ]
+}
