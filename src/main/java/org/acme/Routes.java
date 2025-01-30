@@ -102,7 +102,7 @@ public class Routes extends RouteBuilder {
                                 session.rollback();
                             }
                         }
-                    })
+                    });
 
         } else {
             log.info("no scenario " + sc);
