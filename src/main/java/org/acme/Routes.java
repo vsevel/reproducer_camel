@@ -1,7 +1,11 @@
 package org.acme;
 
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.builder.endpoint.StaticEndpointBuilders;
 import org.eclipse.microprofile.config.ConfigProvider;
+
+import static org.apache.camel.builder.endpoint.StaticEndpointBuilders.sjms2;
+
 
 public class Routes extends RouteBuilder {
 
@@ -17,7 +21,9 @@ public class Routes extends RouteBuilder {
 //        String scenario = "kafka"; // send 1000000; dev service avg=38000; LO=25000
 //        String scenario = "kafka-to-jms"; // send 1000; dev service avg=120; LO=125
 //        String scenario = "kafka-to-jms-manual-commit"; // send 1000; dev service avg=95; LO=30
-        String scenario = "sjms-to-kafka-with-ack";
+//        String scenario = "sjms-to-kafka-with-ack";
+//        String scenario = "noop";
+        String scenario = "jms-ra";
 
         String sc = ConfigProvider.getConfig().getOptionalValue("scenario", String.class).orElse(scenario);
         log.info("running scenario " + sc);
@@ -27,6 +33,12 @@ public class Routes extends RouteBuilder {
             // curl -X POST localhost:18080/hello/send-jms?count=1000
             from("jms:queue:"+queue+"?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");
+
+        } else if (sc.equals("jms-ra")) {
+
+            // curl -X POST localhost:18080/hello/send-jms?count=1000
+            from(sjms2("queue:"+queue+"?concurrentConsumers=10").connectionFactory("#CFRA"))
+                    .log("received ${body}");
 
         } else if (sc.equals("jms-to-kafka")) {
 

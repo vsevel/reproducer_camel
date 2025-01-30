@@ -27,7 +27,12 @@ public class GreetingResource {
     private final Queue queue;
 
     @Inject
+    @Identifier("<default>")
     ConnectionFactory connectionFactory;
+
+    @Inject
+    @Identifier("CFRA")
+    ConnectionFactory connectionFactoryRA;
 
     @Inject
     TransactionManager transactionManager;
@@ -51,9 +56,12 @@ public class GreetingResource {
     @Path("/send-jms")
     @Produces(MediaType.TEXT_PLAIN)
     public String send(@QueryParam("text") @DefaultValue("hello") String text,
-                       @QueryParam("count") @DefaultValue("1") int count) throws SystemException {
+                       @QueryParam("count") @DefaultValue("1") int count,
+                       @QueryParam("type") @DefaultValue("simple") String type) throws SystemException {
 
-        sendMessages(text, count, connectionFactory, queue);
+        ConnectionFactory cf = type.equals("ra") ? connectionFactoryRA : connectionFactory;
+
+        sendMessages(text, count, cf, queue);
         MyBean.init();
         return "OK: sent " + count + " JMS message(s) with text " + text;
     }
@@ -120,4 +128,6 @@ public class GreetingResource {
         String rate = count == 0 ? "N/A" :  ""+((int)(count * 1000.0 / delta));
         return "OK: sent "+count+" JMS message(s) to Kafka in "+delta+" ms ("+rate+" messages/s)";
     }
+
+
 }

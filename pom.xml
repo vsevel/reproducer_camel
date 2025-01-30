@@ -16,6 +16,7 @@
         <skipITs>true</skipITs>
         <surefire-plugin.version>3.5.0</surefire-plugin.version>
         <kafka-avro-serializer.version>7.2.0</kafka-avro-serializer.version>
+        <quarkus-ironjacamar.version>1.5.0</quarkus-ironjacamar.version>
     </properties>
 
     <repositories>
@@ -46,6 +47,18 @@
     </dependencyManagement>
 
     <dependencies>
+
+        <dependency>
+            <groupId>io.quarkiverse.ironjacamar</groupId>
+            <artifactId>quarkus-ironjacamar</artifactId>
+            <version>${quarkus-ironjacamar.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkiverse.artemis</groupId>
+            <artifactId>quarkus-artemis-jms-ra</artifactId>
+            <version>3.6.1</version>
+        </dependency>
+
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-rest</artifactId>
