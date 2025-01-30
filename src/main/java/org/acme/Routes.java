@@ -1,5 +1,8 @@
 package org.acme;
 
+import jakarta.jms.Session;
+import org.apache.camel.Exchange;
+import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
 import org.eclipse.microprofile.config.ConfigProvider;
 
@@ -17,7 +20,8 @@ public class Routes extends RouteBuilder {
 //        String scenario = "kafka"; // send 1000000; dev service avg=38000; LO=25000
 //        String scenario = "kafka-to-jms"; // send 1000; dev service avg=120; LO=125
 //        String scenario = "kafka-to-jms-manual-commit"; // send 1000; dev service avg=95; LO=30
-        String scenario = "sjms-to-kafka-with-ack";
+        String scenario = "sjms-to-kafka-with-tx";
+//        String scenario = "noop";
 
         String sc = ConfigProvider.getConfig().getOptionalValue("scenario", String.class).orElse(scenario);
         log.info("running scenario " + sc);
@@ -87,10 +91,18 @@ public class Routes extends RouteBuilder {
 
         } else if (sc.equals("sjms-to-kafka-with-ack")) {
 
-            from("sjms2:queue:"+queue+"?concurrentConsumers=10&acknowledgementMode=CLIENT_ACKNOWLEDGE&asyncConsumer=true")
+            from("sjms2:queue:"+queue+"?concurrentConsumers=10&transacted=true&asyncConsumer=true")
                     .bean("my-bean", "fromJMS")
-                    .to("kafka:"+topic);
-            // .bean("my-bean", "fail");
+                    .to("kafka:"+topic)
+                    .onCompletion().onFailureOnly().process(new Processor() {
+                        @Override
+                        public void process(Exchange exchange) throws Exception {
+                            Object camelJMSSession = exchange.getProperties().get("CamelJMSSession");
+                            if(camelJMSSession instanceof Session session) {
+                                session.rollback();
+                            }
+                        }
+                    })
 
         } else {
             log.info("no scenario " + sc);
