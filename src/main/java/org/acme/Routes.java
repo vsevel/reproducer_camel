@@ -78,7 +78,7 @@ public class Routes extends RouteBuilder {
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
             from("kafka:"+topic+"?allowManualCommit=true&autoCommitEnable=false")
                     .bean("my-bean", "fromKafka")
-                    .to("sjms:queue:"+queue)
+                    .to("sjms2:queue:"+queue)
                     .onCompletion().onCompleteOnly().process(new Processor() {
                         @Override
                         public void process(Exchange exchange) throws Exception {
