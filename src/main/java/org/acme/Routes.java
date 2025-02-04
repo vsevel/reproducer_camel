@@ -89,9 +89,9 @@ public class Routes extends RouteBuilder {
             from("kafka:"+topic)
                     .bean("my-bean", "fromKafka");
 
-        } else if (sc.equals("sjms-to-kafka-with-ack")) {
+        } else if (sc.equals("sjms-to-kafka-with-tx")) {
 
-            from("sjms2:queue:"+queue+"?concurrentConsumers=10&transacted=true&asyncConsumer=true")
+            from("sjms2:queue:"+queue+"?concurrentConsumers=10&transacted=true")
                     .bean("my-bean", "fromJMS")
                     .to("kafka:"+topic)
                     .onCompletion().onFailureOnly().process(new Processor() {
@@ -103,6 +103,22 @@ public class Routes extends RouteBuilder {
                             }
                         }
                     });
+
+        } else if (sc.equals("sjms-to-kafka-with-ack")) {
+
+            from("sjms2:queue:"+queue+"?concurrentConsumers=10&acknowledgementMode=CLIENT_ACKNOWLEDGE")
+                    .bean("my-bean", "fromJMS")
+                    .to("kafka:"+topic)
+                    .onCompletion().onFailureOnly().process(new Processor() {
+                        @Override
+                        public void process(Exchange exchange) throws Exception {
+                            Object camelJMSSession = exchange.getProperties().get("CamelJMSSession");
+                            if(camelJMSSession instanceof Session session) {
+                                session.recover();
+                            }
+                        }
+                    });
+
 
         } else {
             log.info("no scenario " + sc);
