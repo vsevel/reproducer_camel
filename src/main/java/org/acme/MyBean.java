@@ -61,9 +61,9 @@ public class MyBean {
         }
     }
 
-    public List<String> fromKafkaMulti(List<Exchange> exchanges) {
-        // build jms bodies out of the multiple kafka messages
-        return exchanges.stream().map(ex -> ((Order)  ex.getIn().getBody()).getReferenceValue().toString()).toList();
+    public void fromKafkaMulti(Exchange exchange) {
+        List<Exchange> exchanges = exchange.getIn().getBody(List.class);
+        countKafka.addAndGet(exchanges.size());
     }
 
     @Scheduled(every = "1s")
