@@ -87,8 +87,8 @@ public class Routes extends RouteBuilder {
                         }
                     });
 
-            from("jms:queue:"+queue+"?concurrentConsumers=10")
-                    .bean("my-bean", "fromJMS");
+//            from("jms:queue:"+queue+"?concurrentConsumers=10")
+//                    .bean("my-bean", "fromJMS");
 
         } else if (sc.equals("kafka")) {
 
