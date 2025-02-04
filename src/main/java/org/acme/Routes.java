@@ -104,7 +104,7 @@ public class Routes extends RouteBuilder {
                             KafkaManualCommit manualCommit = last.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
                             manualCommit.commit();
                         }
-                    })
+                    }).end()
                     .bean("my-bean", "fromKafkaMulti")
                     .split(method(new MyCustomSplitter(), "splitMe"))
                     .to("sjms2:queue:"+queue+"?transacted=true");
