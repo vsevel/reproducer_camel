@@ -7,6 +7,8 @@ import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.kafka.consumer.KafkaManualCommit;
 import org.eclipse.microprofile.config.ConfigProvider;
 
+import java.util.List;
+
 public class Routes extends RouteBuilder {
 
     @Override
@@ -93,16 +95,19 @@ public class Routes extends RouteBuilder {
         } else if (sc.equals("kafka-to-jms-manual-commit-batch")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
-            from("kafka:"+topic+"?consumersCount=4&allowManualCommit=true&autoCommitEnable=false&batching=true&maxPollRecords=10")
-                    .bean("my-bean", "fromKafkaMulti")
-                    .to("sjms2:queue:"+queue+"?transacted=true")
+            from("kafka:"+topic+"?consumersCount=4&allowManualCommit=true&autoCommitEnable=false&batching=true&maxPollRecords=500")
                     .onCompletion().onCompleteOnly().process(new Processor() {
                         @Override
                         public void process(Exchange exchange) throws Exception {
-                            KafkaManualCommit manualCommit = exchange.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
+                            List<Exchange> exchanges = exchange.getIn().getBody(List.class);
+                            Exchange last = exchanges.get(exchanges.size() - 1);
+                            KafkaManualCommit manualCommit = last.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
                             manualCommit.commit();
                         }
-                    });
+                    })
+                    .bean("my-bean", "fromKafkaMulti")
+                    .split(method(new MyCustomSplitter(), "splitMe"))
+                    .to("sjms2:queue:"+queue+"?transacted=true");
 
         } else if (sc.equals("kafka")) {
 
