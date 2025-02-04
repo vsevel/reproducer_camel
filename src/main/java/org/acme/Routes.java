@@ -90,6 +90,20 @@ public class Routes extends RouteBuilder {
 //            from("jms:queue:"+queue+"?concurrentConsumers=10")
 //                    .bean("my-bean", "fromJMS");
 
+        } else if (sc.equals("kafka-to-jms-manual-commit-batch")) {
+
+            // curl -X POST localhost:18080/hello/send-kafka?count=1000
+            from("kafka:"+topic+"?consumersCount=4&allowManualCommit=true&autoCommitEnable=false&batching=true&maxPollRecords=10")
+                    .bean("my-bean", "fromKafkaMulti")
+                    .to("sjms2:queue:"+queue+"?transacted=true")
+                    .onCompletion().onCompleteOnly().process(new Processor() {
+                        @Override
+                        public void process(Exchange exchange) throws Exception {
+                            KafkaManualCommit manualCommit = exchange.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
+                            manualCommit.commit();
+                        }
+                    });
+
         } else if (sc.equals("kafka")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
