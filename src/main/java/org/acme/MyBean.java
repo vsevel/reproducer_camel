@@ -10,6 +10,7 @@ import org.apache.camel.component.kafka.consumer.KafkaManualCommit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,6 +59,11 @@ public class MyBean {
         } else {
             return body;
         }
+    }
+
+    public List<String> fromKafkaMulti(List<Exchange> exchanges) {
+        // build jms bodies out of the multiple kafka messages
+        return exchanges.stream().map(ex -> ((Order)  ex.getIn().getBody()).getReferenceValue().toString()).toList();
     }
 
     @Scheduled(every = "1s")
