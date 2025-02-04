@@ -76,7 +76,7 @@ public class Routes extends RouteBuilder {
         } else if (sc.equals("kafka-to-jms-manual-commit")) {
 
             // curl -X POST localhost:18080/hello/send-kafka?count=1000
-            from("kafka:"+topic+"?allowManualCommit=true&autoCommitEnable=false")
+            from("kafka:"+topic+"?consumersCount=4&allowManualCommit=true&autoCommitEnable=false")
                     .bean("my-bean", "fromKafka")
                     .to("sjms2:queue:"+queue)
                     .onCompletion().onCompleteOnly().process(new Processor() {
