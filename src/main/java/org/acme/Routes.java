@@ -4,6 +4,7 @@ import jakarta.jms.Session;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.component.kafka.consumer.KafkaManualCommit;
 import org.eclipse.microprofile.config.ConfigProvider;
 
 public class Routes extends RouteBuilder {
@@ -78,7 +79,13 @@ public class Routes extends RouteBuilder {
             from("kafka:"+topic+"?allowManualCommit=true&autoCommitEnable=false")
                     .bean("my-bean", "fromKafka")
                     .to("jms:queue:"+queue)
-                    .bean("my-bean", "commitKafka");
+                    .onCompletion().onCompleteOnly().process(new Processor() {
+                        @Override
+                        public void process(Exchange exchange) throws Exception {
+                            KafkaManualCommit manualCommit = exchange.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
+                            manualCommit.commit();
+                        }
+                    });
 
             from("jms:queue:"+queue+"?concurrentConsumers=10")
                     .bean("my-bean", "fromJMS");

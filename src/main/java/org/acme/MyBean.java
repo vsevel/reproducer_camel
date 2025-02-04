@@ -60,11 +60,6 @@ public class MyBean {
         }
     }
 
-    public void commitKafka(Exchange exchange) {
-        KafkaManualCommit manualCommit = exchange.getIn().getHeader("CamelKafkaManualCommit", KafkaManualCommit.class);
-        manualCommit.commit();
-    }
-
     @Scheduled(every = "1s")
     public void logLastJms() {
         int value = countJMS.getAndSet(0);
